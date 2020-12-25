@@ -1,0 +1,24 @@
+{
+  "name": "engine",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests.js",
+    "rebuild": "electron-rebuild",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csbinary": "^2.1.4",
+    "node-hid": "^2.1.1",
+    "xinput-ffi": "^1.0.0"
+  },
+  "devDependencies": {
+    "electron": "^11.1.0",
+    "electron-builder": "^22.7.0",
+    "electron-rebuild": "^1.11.0"
+  }
+}

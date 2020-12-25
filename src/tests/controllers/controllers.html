@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                width: 100%;
+                height: 100%;
+            }
+
+            p.label {
+                text-align: center;
+                font-family: monospace;
+                font-size: 18px;
+                padding: 5px;
+                background-color: #DDD;
+                border-top-right-radius: 3px;
+                border-top-left-radius: 3px;
+                font-weight: bold;
+            }
+
+            #face_container, #dpad_container, #shoulder_container, #stick_container {
+                margin: 5px;
+                border-radius: 10px;
+                border: solid 2px #DDD;
+                display: inline-block;
+                overflow: hidden;
+                height: 140px;
+            }
+
+            #face_container .face_row, #dpad_container .dpad_row {
+                height: 30px;
+                margin: 0 10px;
+                background-color: transparent;
+            }
+
+            #face_container .face_row:nth-child(2) { margin-top: 10px; }
+            #face_container .face_row:last-child { margin-bottom: 10px; }
+
+            #dpad_container .dpad_row:nth-child(2) { margin-top: 10px; }
+            #dpad_container .dpad_row:last-child { margin-bottom: 10px; }
+
+            #face_container .face_row .face_indicator,
+            #face_container .face_row .face_spacer,
+            #dpad_container .dpad_row .dpad_indicator,
+            #dpad_container .dpad_row .dpad_spacer {
+                width: 30px;
+                height: 30px;
+                margin: 0;
+                padding: 0;
+                display: inline-block;
+            }
+
+            #face_container .face_row .face_indicator {
+                background-color: #DDD;
+                border-radius: 50px;
+            }
+
+            #dpad_container .dpad_row .dpad_indicator {
+                background-color: #DDD;
+            }
+
+            #face_container .face_row .face_indicator.active,
+            #dpad_container .dpad_row .dpad_indicator.active {
+                background-color: #FF9999;
+            }
+
+            #face_container .face_row .face_spacer,
+            #dpad_container .dpad_row .dpad_spacer {
+                background-color: transparent;
+            }
+
+            #dpad_container .dpad_row .dpad_indicator#dpad_north { border-top-left-radius: 5px; border-top-right-radius: 5px; }
+            #dpad_container .dpad_row .dpad_indicator#dpad_east { border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+            #dpad_container .dpad_row .dpad_indicator#dpad_south { border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; }
+            #dpad_container .dpad_row .dpad_indicator#dpad_west { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+
+            #shoulder_container {
+                width: 100px;
+            }
+
+            #shoulder_container .shoulder_bumper {
+                display: inline-block;
+                text-align: center;
+                background-color: #DDD;
+                width: 36px;
+                padding: 5px;
+                margin: 2px;
+                border-radius: 5px;
+                font-size: 16px;
+                font-family: monospace;
+            }
+
+            #shoulder_container .shoulder_bumper.active {
+                background-color: #FF9999;
+            }
+
+            #shoulder_container .shoulder_trigger {
+                position: relative;
+                margin: 2px 2px 4px 2px;
+                height: 30px;
+                border-radius: 20px;
+                background-color: #DDD;
+                overflow: hidden;
+            }
+
+            #shoulder_container .shoulder_trigger .shoulder_trigger_label {
+                font-family: monospace;
+                font-size: 18px;
+                text-align: center;
+                position: absolute;
+                width: 100%;
+                top: 4px;
+            }
+
+            #shoulder_container .shoulder_trigger .shoulder_trigger_percent {
+                background-color: #FF9999;
+                width: 0%;
+                height: 100px;
+            }
+
+            #stick_container {
+                position: relative;
+                height: 200px;
+                width: 350px;
+                margin-left: 15px;
+            }
+
+            #stick_container .stick_canvas {
+                background-color: white;
+                width: 100px;
+                height: 100px;
+                position: absolute;
+                margin: 25px 50px 25px 50px;
+            }
+
+            #stick_container .stick_canvas:nth-child(1) {
+                left: 0;
+            }
+
+            #stick_container .stick_canvas:nth-child(2) {
+                right: 0;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div id="face_container">
+            <p class="label">face</p>
+            <div class="face_row"><div class="face_spacer"></div><div class="face_indicator" id="face_north"></div><div class="face_spacer"></div></div>
+            <div class="face_row"><div class="face_indicator" id="face_west"></div><div class="face_spacer"></div><div class="face_indicator" id="face_east"></div></div>
+            <div class="face_row"><div class="face_spacer"></div><div class="face_indicator" id="face_south"></div><div class="face_spacer"></div></div>
+        </div>
+
+        <div id="dpad_container">
+            <p class="label">dpad</p>
+            <div class="dpad_row"><div class="dpad_spacer"></div><div class="dpad_indicator" id="dpad_north"></div><div class="dpad_spacer"></div></div>
+            <div class="dpad_row"><div class="dpad_indicator" id="dpad_west"></div><div class="dpad_indicator"></div><div class="dpad_indicator" id="dpad_east"></div></div>
+            <div class="dpad_row"><div class="dpad_spacer"></div><div class="dpad_indicator" id="dpad_south"></div><div class="dpad_spacer"></div></div>
+        </div>
+
+        <div id="shoulder_container">
+            <p class="label">shoulder</p>
+            <div class="shoulder_bumper" id="shoulder_LB">LB</div><div class="shoulder_bumper" id="shoulder_RB">RB</div>
+            <div class="shoulder_trigger">
+                <p class="shoulder_trigger_label">LT</p>
+                <div class="shoulder_trigger_percent" id="shoulder_LT"></div>
+            </div>
+            <div class="shoulder_trigger">
+                <p class="shoulder_trigger_label">RT</p>
+                <div class="shoulder_trigger_percent" id="shoulder_RT"></div>
+            </div>
+        </div>
+
+        <div id="stick_container">
+            <p class="label">analog sticks</p>
+            <canvas class="stick_canvas" id="right_stick_canvas" width="100" height="100"></canvas>
+            <canvas class="stick_canvas" id="left_stick_canvas" width="100" height="100"></canvas>
+        </div>
+    </body>
+
+    <script src="./controllers.js"></script>
+</html>

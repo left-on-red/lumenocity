@@ -1,0 +1,1 @@
+console.log('do "npm test <test name>" to run a specified test');

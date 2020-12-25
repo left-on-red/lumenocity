@@ -69,8 +69,8 @@ class Archive {
 
         let split = path.split('/');
 
-        if (!this.mode == 'uncompressed') {
-            if (!fs.existsSync(`${this.root}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
+        if (this.mode == 'uncompressed') {
+            if (!fs.existsSync(`${this.path}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
             return this._uncompressed_asset(path);
         }
 
@@ -91,7 +91,10 @@ class Archive {
     }
 
     _uncompressed_asset(path) {
-
+        let stats = fs.statSync(`${this.path}/${path}`);
+        if (stats.isDirectory()) { return fs.readdirSync(`${this.path}/${path}`) }
+        if (stats.size <= 10485760) { return fs.readFileSync(`${this.path}/${path}`) }
+        else { return fs.createReadStream(`${this.path}/${path}`) }
     }
 
     _archived_asset(map) {

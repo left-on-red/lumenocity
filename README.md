@@ -4,11 +4,11 @@
 
 in short, *lumenocity* is a game engine that's being written practically from the ground up in JavaScript using Node.js and Electron.
 
-for the most part, I'm writing this by myself, but I will be documenting my progress at (http://sylvir.net)[http://sylvir.net/blog]. testing of *lumenocity* will be split into many distinct parts that are mostly independent of each other. all of these tests will be kept and contained within the `src/tests` directory. however, that may be moved to just `/tests` to keep the core engine seperate from the module tests.
+for the most part, I'm writing this by myself, but I will be documenting my progress at [http://sylvir.net](http://sylvir.net/blog). testing of *lumenocity* will be split into many distinct parts that are mostly independent of each other. all of these tests will be kept and contained within the `src/tests` directory. however, that may be moved to just `/tests` to keep the core engine seperate from the module tests.
 
 ### development
 
-this repository is licensed under the MIT license, and thus, permits modification, reuse, and distribution of open and closed sourced versions. this project obviously uses the Node.js/npm ecosystem, so most of the prerequisites can be downloaded and installed using `npm install` while in the root directory of the project. in addition to this, some npm modules use `node-gyp`, which has some dependencies on its own. the `node-gyp` GitHub repository can be found (here)[https://github.com/nodejs/node-gyp]
+this repository is licensed under the MIT license, and thus, permits modification, reuse, and distribution of open and closed sourced versions. this project obviously uses the Node.js/npm ecosystem, so most of the prerequisites can be downloaded and installed using `npm install` while in the root directory of the project. in addition to this, some npm modules use `node-gyp`, which has some dependencies on its own. the `node-gyp` GitHub repository can be found [here](https://github.com/nodejs/node-gyp)
 
 after all dependencies have been successfully installed, any one of the tests can be ran with `npm test <test name>`. a list of all available tests can be retrieved by just running `npm test` without the `<test name>` parameter.
 

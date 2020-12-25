@@ -22,6 +22,7 @@ else {
     // the <test>_ prefix is to prevent ambiguity. so there won't be a bunch of identically named app.js files
     let testProc = child_process.spawn('electron.cmd', [`src/tests/${test}/${test}_test.js`], { shell: true });
     testProc.stdout.pipe(process.stdout);
+    testProc.stderr.pipe(process.stderr);
     
     // key interrupt
     // (so the app can exit gracefully and if cleanup needs to be done)

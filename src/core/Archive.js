@@ -19,14 +19,14 @@ class ByteStream extends Readable {
      */
     constructor(reader, length) {
         this.reader = reader;
-        this.length = length + 1024;
+        this.length = length + 4096;
 
         this._next();
     }
 
     _next() {
         let self = this;
-        let chunk_size = this.length >= 1024 ? 1024 : this.length;
+        let chunk_size = this.length >= 4096 ? 4096 : this.length;
 
         readChunk(this.reader, chunk_size).then(function(data) { self.push(data, 'binary'); self._next() });
         this.length -= chunk_size;
@@ -103,11 +103,11 @@ class Archive {
     
         // returns a raw buffer if the asset is <=10mb
         if (map.length <= 10485760) {
-            let cycles = Math.floor(map.length / 1024);
-            let remainder = map.length % 1024;
+            let cycles = Math.floor(map.length / 4096);
+            let remainder = map.length % 4096;
 
             let buffers = [];
-            for (let c = 0; c < cycles.length; c++) { buffers.push(reader.readBytes(1024)) }
+            for (let c = 0; c < cycles.length; c++) { buffers.push(reader.readBytes(4096)) }
             buffers.push(reader.readBytes(remainder));
 
             reader.close();
@@ -119,7 +119,7 @@ class Archive {
     }
 
     _read_archive() {
-        let reader = new BinaryReader(File(fs.openSync(this.path), 'w'));
+        let reader = new BinaryReader(File(fs.openSync(this.path, 'r')));
         
         let c = 0;
 
@@ -141,15 +141,15 @@ class Archive {
 
                 c += 8;
 
-                let cycles = Math.floor(length/1024);
-                let remainder = (length % 1024);
+                let cycles = Math.floor(length/1073741824);
+                let remainder = (length % 1073741824);
 
-                for (let i = 0; i < cycles; i++) { reader.readBytes(1024) }
-                reader.readBytes(remainder);
+                for (let i = 0; i < cycles; i++) { reader.file.seek(1073741824, SeekOrigin.Current) }
+                reader.file.seek(remainder, SeekOrigin.Current);
 
                 map[name] = { start: c, length: length }
 
-                c += (cycles * 1024) + remainder;
+                c += length;
             }
         }
 
@@ -170,6 +170,55 @@ class Archive {
         }
 
         writer.close();
+    }
+
+    static _decompress_archive(in_path, out_path) {
+        if (!fs.existsSync(in_path)) { throw new Error(`"${in_path}" does not exist`) }
+        if (fs.statSync(in_path).isDirectory()) { throw new Error(`"${in_path}" is not a file`) }
+        
+        if (!fs.existsSync(out_path)) { fs.mkdirSync(out_path) }
+
+        let archive = new Archive(in_path);
+        let map = archive.map;
+
+
+        function recur(path, map) {
+            for (let m in map) {
+                if (!(map[m].start && map[m].length)) {
+                    fs.mkdirSync(`${path}/${m}`);
+                    recur(`${path}/${m}`, map[m]);
+                }
+
+                else {
+                    let start = map[m].start;
+                    let length = map[m].length;
+
+
+                    let cycles = Math.floor(length / 4096);
+                    let remainder = length % 4096;
+
+                    let seek_cycles = Math.floor(start / 1073741824);
+                    let seek_remainder = start % 1073741824;
+
+                    let reader = new BinaryReader(File(fs.openSync(in_path, 'r')));
+
+                    for (let s = 0; s < seek_cycles; s++) { reader.file.seek(1073741824, SeekOrigin.Current) }
+                    reader.file.seek(seek_remainder, SeekOrigin.Current);
+
+                    let writer = new BinaryWriter(File(fs.openSync(`${path}/${m}`, 'w')));
+
+                    for (let c = 0; c < cycles; c++) { writer.writeBuffer(reader.readBytes(4096)) }
+                    writer.writeBuffer(reader.readBytes(remainder));
+
+                    reader.close();
+                    writer.close();
+
+                    console.log(`${path.split(out_path)[1]}/${m} @ ${cycles + (remainder != 0 ? 1 : 0)} cycles`)
+                }
+            }
+        }
+
+        recur(out_path, map);
     }
 
     /**
@@ -216,10 +265,10 @@ class Archive {
             // the byte position (offset)
             let c = 0;
             while(true) {
-                let bytes = reader.readBytes(1024);
+                let bytes = reader.readBytes(4096);
                 writer.writeBuffer(bytes);
                 c++;
-                if (bytes.length != 1024) { break }
+                if (bytes.length != 4096) { break }
             }
 
             console.log(`${t} @ ${c} cycles`);

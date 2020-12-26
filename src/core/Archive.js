@@ -2,6 +2,19 @@ let fs = require('fs');
 let { BinaryReader, BinaryWriter, File, SeekOrigin } = require('csbinary');
 const { Readable } = require('stream');
 
+// src: https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 /**
  * 
  * @param {BinaryReader} reader 
@@ -123,7 +136,7 @@ function _write_container(path, writer, t) {
             if (bytes.length != 4096) { break }
         }
 
-        console.log(`${t} @ ${c} cycles`);
+        console.log(`compiled ${t} (${formatBytes(stats.size)})`);
 
         reader.close();
     }
@@ -280,7 +293,7 @@ class Archive {
                     reader.close();
                     writer.close();
 
-                    console.log(`${path.split(out_path)[1]}/${m} @ ${cycles + (remainder != 0 ? 1 : 0)} cycles`)
+                    console.log(`decompiled ${path.split(out_path)[1]}/${m} (${formatBytes(length)})`)
                 }
             }
         }

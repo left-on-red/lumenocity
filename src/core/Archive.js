@@ -35,6 +35,100 @@ class ByteStream extends Readable {
     }
 }
 
+/**
+ * 
+ * @param {Archive} archive 
+ * @param {string} path 
+ */
+function _uncompressed_asset(archive, path) {
+    let stats = fs.statSync(`${archive.path}/${path}`);
+    if (stats.isDirectory()) { return fs.readdirSync(`${archive.path}/${path}`) }
+    if (stats.size <= 10485760) { return fs.readFileSync(`${archive.path}/${path}`) }
+    else { return fs.createReadStream(`${archive.path}/${path}`) }
+}
+
+/**
+ * 
+ * @param {Archive} archive 
+ * @param {object} map 
+ */
+function _archived_asset(archive, map) {
+    let reader = new BinaryReader(File(fs.openSync(archive.path), 'w'));
+    reader.file.seek(map.start, SeekOrigin.Begin);
+
+    // returns a raw buffer if the asset is <=10mb
+    if (map.length <= 10485760) {
+        let cycles = Math.floor(map.length / 4096);
+        let remainder = map.length % 4096;
+
+        let buffers = [];
+        for (let c = 0; c < cycles.length; c++) { buffers.push(reader.readBytes(4096)) }
+        buffers.push(reader.readBytes(remainder));
+
+        reader.close();
+        return Buffer.concat(buffers);
+    }
+
+    // returns a stream if the asset is >10mb
+    else { return new ByteStream(reader, map.length) }
+}
+
+/**
+ * @param {string} path
+ * @param {BinaryWriter} writer 
+ * @param {bool} rooted 
+ */
+function _write_container(path, writer, t) {
+    let stats = fs.statSync(path);
+    let directory = stats.isDirectory();
+
+    let container_name = path.split('/')[path.split('/').length - 1];
+    t = `${t}/${container_name}`;
+
+    let header = Buffer.alloc(container_name.length + 2);
+    
+    // whether or not the container is a directory
+    header.writeUInt8(directory ? 0xFF : 0x00, 0);
+
+    // the length of the container name
+    header.writeUInt8(container_name.length, 1);
+
+    // the actual name of the container
+    header.write(container_name, 2, 'ascii');
+
+    // writes the header buffer to the file
+    writer.writeBuffer(header);
+
+    if (directory) {
+        let contents = fs.readdirSync(path);
+
+        // how many items are in the directory container
+        writer.writeUInt16(contents.length);
+
+        for (let c = 0; c < contents.length; c++) { _write_container(`${path}/${contents[c]}`, writer, t) }
+    }
+
+    else {
+        // the size of the file (in bytes)
+        writer.writeUInt64(BigInt(stats.size));
+
+        let reader = new BinaryReader(File(fs.openSync(path, 'r')));
+
+        // the byte position (offset)
+        let c = 0;
+        while(true) {
+            let bytes = reader.readBytes(4096);
+            writer.writeBuffer(bytes);
+            c++;
+            if (bytes.length != 4096) { break }
+        }
+
+        console.log(`${t} @ ${c} cycles`);
+
+        reader.close();
+    }
+}
+
 class Archive {
     /**
      * 
@@ -53,7 +147,7 @@ class Archive {
 
         this.map = this.mode == 'uncompressed' ? null : {};
 
-        if (this.mode == 'archived') { this._read_archive() }
+        if (this.mode == 'archived') { this.map = Archive.map_archive(this.path) }
     }
 
     /**
@@ -71,7 +165,7 @@ class Archive {
 
         if (this.mode == 'uncompressed') {
             if (!fs.existsSync(`${this.path}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
-            return this._uncompressed_asset(path);
+            return _uncompressed_asset(this, path);
         }
 
         let map = JSON.parse(JSON.stringify(this.map));
@@ -87,40 +181,13 @@ class Archive {
         // if a directory container is requested, just return a list of all the container keys inside it
         if (map.start == undefined && map.length == undefined) { return Object.keys(map) }
 
-        return this._archived_asset(map);
+        return _archived_asset(this, map);
     }
 
-    _uncompressed_asset(path) {
-        let stats = fs.statSync(`${this.path}/${path}`);
-        if (stats.isDirectory()) { return fs.readdirSync(`${this.path}/${path}`) }
-        if (stats.size <= 10485760) { return fs.readFileSync(`${this.path}/${path}`) }
-        else { return fs.createReadStream(`${this.path}/${path}`) }
-    }
-
-    _archived_asset(map) {
-        let reader = new BinaryReader(File(fs.openSync(this.path), 'w'));
-        reader.file.seek(map.start, SeekOrigin.Begin);
-    
-        // returns a raw buffer if the asset is <=10mb
-        if (map.length <= 10485760) {
-            let cycles = Math.floor(map.length / 4096);
-            let remainder = map.length % 4096;
-
-            let buffers = [];
-            for (let c = 0; c < cycles.length; c++) { buffers.push(reader.readBytes(4096)) }
-            buffers.push(reader.readBytes(remainder));
-
-            reader.close();
-            return Buffer.concat(buffers);
-        }
-
-        // returns a stream if the asset is >10mb
-        else { return new ByteStream(reader, map.length) }
-    }
-
-    _read_archive() {
-        let reader = new BinaryReader(File(fs.openSync(this.path, 'r')));
+    static map_archive(path) {
+        let reader = new BinaryReader(File(fs.openSync(path, 'r')));
         
+        let map = {};
         let c = 0;
 
         function read(map, d) {
@@ -153,26 +220,26 @@ class Archive {
             }
         }
 
-        while(reader.peekChar() != -1) { read(this.map, '') }
+        while(reader.peekChar() != -1) { read(map, '') }
 
         reader.close();
+
+        return map;
     }
 
-    static _compress_archive(in_path, out_path) {
+    static compress_archive(in_path, out_path) {
         if (!fs.existsSync(in_path)) { throw new Error(`"${in_path}" does not exist`) }
         if (!fs.statSync(in_path).isDirectory()) { throw new Error(`"${in_path}" is not a directory`) }
 
         let writer = new BinaryWriter(File(fs.openSync(out_path, 'w')));
 
         let containers = fs.readdirSync(in_path);
-        for (let c = 0; c < containers.length; c++) {
-            Archive._write_container(`${in_path}/${containers[c]}`, writer, '');
-        }
+        for (let c = 0; c < containers.length; c++) { _write_container(`${in_path}/${containers[c]}`, writer, '') }
 
         writer.close();
     }
 
-    static _decompress_archive(in_path, out_path) {
+    static decompress_archive(in_path, out_path) {
         if (!fs.existsSync(in_path)) { throw new Error(`"${in_path}" does not exist`) }
         if (fs.statSync(in_path).isDirectory()) { throw new Error(`"${in_path}" is not a file`) }
         
@@ -219,62 +286,6 @@ class Archive {
         }
 
         recur(out_path, map);
-    }
-
-    /**
-     * @param {string} path
-     * @param {BinaryWriter} writer 
-     * @param {bool} rooted 
-     */
-    static _write_container(path, writer, t) {
-        let stats = fs.statSync(path);
-        let directory = stats.isDirectory();
-
-        let container_name = path.split('/')[path.split('/').length - 1];
-        t = `${t}/${container_name}`;
-
-        let header = Buffer.alloc(container_name.length + 2);
-        
-        // whether or not the container is a directory
-        header.writeUInt8(directory ? 0xFF : 0x00, 0);
-
-        // the length of the container name
-        header.writeUInt8(container_name.length, 1);
-
-        // the actual name of the container
-        header.write(container_name, 2, 'ascii');
-
-        // writes the header buffer to the file
-        writer.writeBuffer(header);
-
-        if (directory) {
-            let contents = fs.readdirSync(path);
-
-            // how many items are in the directory container
-            writer.writeUInt16(contents.length);
-
-            for (let c = 0; c < contents.length; c++) { Archive._write_container(`${path}/${contents[c]}`, writer, t) }
-        }
-
-        else {
-            // the size of the file (in bytes)
-            writer.writeUInt64(BigInt(stats.size));
-
-            let reader = new BinaryReader(File(fs.openSync(path, 'r')));
-
-            // the byte position (offset)
-            let c = 0;
-            while(true) {
-                let bytes = reader.readBytes(4096);
-                writer.writeBuffer(bytes);
-                c++;
-                if (bytes.length != 4096) { break }
-            }
-
-            console.log(`${t} @ ${c} cycles`);
-
-            reader.close();
-        }
     }
 }
 

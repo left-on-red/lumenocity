@@ -145,7 +145,7 @@ function _write_container(path, writer, t) {
 class Archive {
     /**
      * 
-     * @param {string} path the path of the archive whether it's compressed or not. note: for simplicity and maintainability reasons, the path must be absolute
+     * @param {string} path the path of the archive whether it's compiled or not. note: for simplicity and maintainability reasons, the path must be absolute
      */
     constructor(path) {
         path = path.replace(/\\/g, '/');
@@ -156,11 +156,11 @@ class Archive {
         this.path = path;
         this.name = path.split('/')[path.split('/').length - 1];
 
-        this.mode = fs.statSync(path).isDirectory() ? 'uncompressed' : 'archived';
+        this.mode = fs.statSync(path).isDirectory() ? 'uncompiled' : 'compiled';
 
-        this.map = this.mode == 'uncompressed' ? null : {};
+        this.map = this.mode == 'uncompiled' ? null : {};
 
-        if (this.mode == 'archived') { this.map = Archive.map_archive(this.path) }
+        if (this.mode == 'compiled') { this.map = Archive.map_archive(this.path) }
     }
 
     /**
@@ -176,7 +176,7 @@ class Archive {
 
         let split = path.split('/');
 
-        if (this.mode == 'uncompressed') {
+        if (this.mode == 'uncompiled') {
             if (!fs.existsSync(`${this.path}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
             return _uncompressed_asset(this, path);
         }

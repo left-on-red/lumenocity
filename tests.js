@@ -1,7 +1,8 @@
 let child_process = require('child_process');
 let readline = require('readline');
+let fs = require('fs');
 
-let tests = [ 'controllers' ];
+let tests = fs.readdirSync(`${__dirname}/src/tests`);
 
 // node.exe
 process.argv.shift();

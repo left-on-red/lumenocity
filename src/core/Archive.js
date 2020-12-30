@@ -19,7 +19,7 @@ function formatBytes(bytes, decimals = 2) {
  * @param {Archive} archive 
  * @param {string} path 
  */
-function _uncompressed_asset(archive, path) {
+function _uncompiled_asset(archive, path) {
     let stats = fs.statSync(`${archive.path}/${path}`);
     if (stats.isDirectory()) { return fs.readdirSync(`${archive.path}/${path}`) }
     if (stats.size <= 10485760) { return fs.readFileSync(`${archive.path}/${path}`) }
@@ -31,7 +31,7 @@ function _uncompressed_asset(archive, path) {
  * @param {Archive} archive 
  * @param {object} map 
  */
-function _archived_asset(archive, map) {
+function _compiled_asset(archive, map) {
     let reader = new BinaryReader(File(fs.openSync(archive.path), 'w'));
     reader.file.seek(map.start, SeekOrigin.Begin);
 
@@ -147,7 +147,7 @@ class Archive {
 
         if (this.mode == 'uncompiled') {
             if (!fs.existsSync(`${this.path}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
-            return _uncompressed_asset(this, path);
+            return _uncompiled_asset(this, path);
         }
 
         let map = JSON.parse(JSON.stringify(this.map));
@@ -163,7 +163,7 @@ class Archive {
         // if a directory container is requested, just return a list of all the container keys inside it
         if (map.start == undefined && map.length == undefined) { return Object.keys(map) }
 
-        return _archived_asset(this, map);
+        return _compiled_asset(this, map);
     }
 
     static map_archive(path) {

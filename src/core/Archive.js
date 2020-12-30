@@ -1,6 +1,5 @@
 let fs = require('fs');
 let { BinaryReader, BinaryWriter, File, SeekOrigin } = require('csbinary');
-const { Readable } = require('stream');
 
 // src: https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
 function formatBytes(bytes, decimals = 2) {
@@ -13,39 +12,6 @@ function formatBytes(bytes, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
-
-/**
- * 
- * @param {BinaryReader} reader 
- * @param {number} length 
- */
-async function readChunk(reader, length) { return reader.readBytes(length) }
-
-// for handling BinaryReader in an asynchronous environment
-// (just so I can stream bytes within specific bounds rather than the entire file)
-class ByteStream extends Readable {
-    /**
-     * 
-     * @param {BinaryReader} reader 
-     * @param {number} length 
-     */
-    constructor(reader, length) {
-        this.reader = reader;
-        this.length = length + 4096;
-
-        this._next();
-    }
-
-    _next() {
-        let self = this;
-        let chunk_size = this.length >= 4096 ? 4096 : this.length;
-
-        readChunk(this.reader, chunk_size).then(function(data) { self.push(data, 'binary'); self._next() });
-        this.length -= chunk_size;
-
-        if (this.length == 0) { this.reader.close(); this.destroy() }
-    }
 }
 
 /**
@@ -83,7 +49,10 @@ function _archived_asset(archive, map) {
     }
 
     // returns a stream if the asset is >10mb
-    else { return new ByteStream(reader, map.length) }
+    else {
+        reader.close();
+        return fs.createReadStream(archive.path, { start: map.start, end: map.start + map.length });
+    }
 }
 
 /**

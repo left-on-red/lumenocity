@@ -135,7 +135,7 @@ class Archive {
     /**
      * 
      * @param {string} path
-     * @returns {Buffer|ByteStream} returns a Buffer if the asset is <=10mb. otherwise returns a Stream 
+     * @returns {Buffer|fs.ReadStream} returns a Buffer if the asset is <=10mb. otherwise returns a Stream 
      */
     asset(path) {
         path = path.replace(/\\/g, '/');
@@ -164,6 +164,29 @@ class Archive {
         if (map.start == undefined && map.length == undefined) { return Object.keys(map) }
 
         return _compiled_asset(this, map);
+    }
+
+    //ascii, utf8, utf16le/ucs2, base64, binary, and hex
+
+    /**
+     * 
+     * @param {string} path 
+     * @param {(
+     * 'ascii' |
+     * 'utf8' |
+     * 'utf-8' |
+     * 'utf16le' |
+     * 'ucs2' |
+     * 'ucs-2' |
+     * 'base64' |
+     * 'binary' |
+     * 'hex'
+     * )} encoding 
+     */
+    string(path, encoding = 'utf8') {
+        let asset = this.asset(path);
+        if (asset instanceof fs.ReadStream) { throw new Error(`asset "${path}" is too large to be read as a string`) }
+        return asset.toString(encoding);
     }
 
     static map_archive(path) {

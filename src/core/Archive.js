@@ -189,6 +189,12 @@ class Archive {
         return asset.toString(encoding);
     }
 
+    json(path) {
+        let asset = this.string(path);
+        try { return JSON.parse(asset) }
+        catch(e) { throw new Error(`asset "${path}" is not valid json`) }
+    }
+
     static map_archive(path) {
         let reader = new BinaryReader(File(fs.openSync(path, 'r')));
         

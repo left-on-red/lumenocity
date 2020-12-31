@@ -166,8 +166,6 @@ class Archive {
         return _compiled_asset(this, map);
     }
 
-    //ascii, utf8, utf16le/ucs2, base64, binary, and hex
-
     /**
      * 
      * @param {string} path 

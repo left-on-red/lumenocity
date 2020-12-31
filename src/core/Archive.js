@@ -1,6 +1,5 @@
 let fs = require('fs');
 let { BinaryReader, BinaryWriter, File, SeekOrigin } = require('csbinary');
-const { Readable } = require('stream');
 
 // src: https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
 function formatBytes(bytes, decimals = 2) {
@@ -17,43 +16,10 @@ function formatBytes(bytes, decimals = 2) {
 
 /**
  * 
- * @param {BinaryReader} reader 
- * @param {number} length 
- */
-async function readChunk(reader, length) { return reader.readBytes(length) }
-
-// for handling BinaryReader in an asynchronous environment
-// (just so I can stream bytes within specific bounds rather than the entire file)
-class ByteStream extends Readable {
-    /**
-     * 
-     * @param {BinaryReader} reader 
-     * @param {number} length 
-     */
-    constructor(reader, length) {
-        this.reader = reader;
-        this.length = length + 4096;
-
-        this._next();
-    }
-
-    _next() {
-        let self = this;
-        let chunk_size = this.length >= 4096 ? 4096 : this.length;
-
-        readChunk(this.reader, chunk_size).then(function(data) { self.push(data, 'binary'); self._next() });
-        this.length -= chunk_size;
-
-        if (this.length == 0) { this.reader.close(); this.destroy() }
-    }
-}
-
-/**
- * 
  * @param {Archive} archive 
  * @param {string} path 
  */
-function _uncompressed_asset(archive, path) {
+function _uncompiled_asset(archive, path) {
     let stats = fs.statSync(`${archive.path}/${path}`);
     if (stats.isDirectory()) { return fs.readdirSync(`${archive.path}/${path}`) }
     if (stats.size <= 10485760) { return fs.readFileSync(`${archive.path}/${path}`) }
@@ -65,7 +31,7 @@ function _uncompressed_asset(archive, path) {
  * @param {Archive} archive 
  * @param {object} map 
  */
-function _archived_asset(archive, map) {
+function _compiled_asset(archive, map) {
     let reader = new BinaryReader(File(fs.openSync(archive.path), 'w'));
     reader.file.seek(map.start, SeekOrigin.Begin);
 
@@ -83,7 +49,10 @@ function _archived_asset(archive, map) {
     }
 
     // returns a stream if the asset is >10mb
-    else { return new ByteStream(reader, map.length) }
+    else {
+        reader.close();
+        return fs.createReadStream(archive.path, { start: map.start, end: map.start + map.length });
+    }
 }
 
 /**
@@ -166,7 +135,7 @@ class Archive {
     /**
      * 
      * @param {string} path
-     * @returns {Buffer|ByteStream} returns a Buffer if the asset is <=10mb. otherwise returns a Stream 
+     * @returns {Buffer|fs.ReadStream} returns a Buffer if the asset is <=10mb. otherwise returns a Stream 
      */
     asset(path) {
         path = path.replace(/\\/g, '/');
@@ -178,7 +147,7 @@ class Archive {
 
         if (this.mode == 'uncompiled') {
             if (!fs.existsSync(`${this.path}/${path}`)) { throw new Error(`asset path "${path}" does not exist`) }
-            return _uncompressed_asset(this, path);
+            return _uncompiled_asset(this, path);
         }
 
         let map = JSON.parse(JSON.stringify(this.map));
@@ -194,7 +163,34 @@ class Archive {
         // if a directory container is requested, just return a list of all the container keys inside it
         if (map.start == undefined && map.length == undefined) { return Object.keys(map) }
 
-        return _archived_asset(this, map);
+        return _compiled_asset(this, map);
+    }
+
+    /**
+     * 
+     * @param {string} path 
+     * @param {(
+     * 'ascii' |
+     * 'utf8' |
+     * 'utf-8' |
+     * 'utf16le' |
+     * 'ucs2' |
+     * 'ucs-2' |
+     * 'base64' |
+     * 'binary' |
+     * 'hex'
+     * )} encoding 
+     */
+    string(path, encoding = 'utf8') {
+        let asset = this.asset(path);
+        if (asset instanceof fs.ReadStream) { throw new Error(`asset "${path}" is too large to be read as a string`) }
+        return asset.toString(encoding);
+    }
+
+    json(path) {
+        let asset = this.string(path);
+        try { return JSON.parse(asset) }
+        catch(e) { throw new Error(`asset "${path}" is not valid json`) }
     }
 
     static map_archive(path) {

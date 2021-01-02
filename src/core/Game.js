@@ -8,20 +8,21 @@ let context = null;
 let targetFPS = 60;
 let debugMode = false;
 
-console.log('game module!');
+let bank = {
+    entities = []
+}
 
 class Game {
     /**
-     * 
+     * @param {CanvasRenderingContext2D} ctx
      * @param {{
-     * context: CanvasRenderingContext2D,
      * fps: number,
      * debug: boolean
      * }} config
      */
-    static start(config) {
-        if (!config.context) { throw new Error('canvas context is required') }
-        context = config.context;
+    static start(ctx, config) {
+        if (!ctx) { throw new Error('canvas context is required') }
+        context = ctx;
         targetFPS = config.fps ? (typeof config.fps == 'number') ? config.fps : 60 : 60;
         debugMode = typeof config.debug == 'boolean' ? config.debug : false;
     }
@@ -59,14 +60,26 @@ class Game {
     }
 
     /**
-     * @returns {CanvasRenderingContext2D}
+     * 
+     * @param {Entity} entity 
      */
-    static context() { return context }
+    static addEntity(entity) {
+        let index = bank.entities.length;
+        bank.entities.push(entity);
+
+        // removes the entity from the array when it's destroyed
+        bank.entities[index].on('destroy', function() { bank.entities.splice(bank.entities.indexOf(entity), 1) });
+    }
 
     /**
      * @returns {Entity[]}
      */
-    static entities() { return entities }
+    static entities() { return bank.entities }
+
+    /**
+     * @returns {CanvasRenderingContext2D}
+     */
+    static context() { return context }
 
     /**
      * @returns {boolean}

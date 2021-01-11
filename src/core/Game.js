@@ -1,15 +1,22 @@
+const Camera = require('./Camera.js');
 let Entity = require('./Entity.js');
+let Level = require('./Level.js');
 
 let updateLoop = null;
 let renderLoop = null;
 
 let context = null;
+let level = null;
+let scale = null;
+
+let activeCamera = null;
 
 let targetFPS = 60;
 let debugMode = false;
 
 let bank = {
-    entities = []
+    entities: [],
+    cameras: []
 }
 
 class Game {
@@ -17,7 +24,8 @@ class Game {
      * @param {CanvasRenderingContext2D} ctx
      * @param {{
      * fps: number,
-     * debug: boolean
+     * debug: boolean,
+     * scale: number
      * }} config
      */
     static start(ctx, config) {
@@ -25,6 +33,14 @@ class Game {
         context = ctx;
         targetFPS = config.fps ? (typeof config.fps == 'number') ? config.fps : 60 : 60;
         debugMode = typeof config.debug == 'boolean' ? config.debug : false;
+        if (config.scale && typeof config.scale == 'number') { context.scale(config.scale, config.scale); scale = config.scale }
+
+        updateLoop = setInterval(function() { for (let e = 0; e < bank.entities.length; e++) { bank.entities[e].update() } }, 10);
+        renderLoop = setInterval(function() {
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+            for (let e = 0; e < bank.entities.length; e++) { bank.entities[e].render() }
+        }, Math.floor(1000 / targetFPS));
     }
 
     /**
@@ -64,11 +80,32 @@ class Game {
      * @param {Entity} entity 
      */
     static addEntity(entity) {
-        let index = bank.entities.length;
-        bank.entities.push(entity);
+        if (entity instanceof Camera) {
+            let index = bank.cameras.length;
+            bank.cameras.push(entity);
+            bank.cameras[index].on('destroy', function() {
+                if (activeCamera == entity) { activeCamera = null }
+                bank.cameras.splice(bank.cameras.indexOf(entity), 1);
+            });
 
-        // removes the entity from the array when it's destroyed
-        bank.entities[index].on('destroy', function() { bank.entities.splice(bank.entities.indexOf(entity), 1) });
+            if (index == 0) { activeCamera = entity }
+        }
+
+        else {
+            let index = bank.entities.length;
+            bank.entities.push(entity);
+    
+            // removes the entity from the array when it's destroyed
+            bank.entities[index].on('destroy', function() { bank.entities.splice(bank.entities.indexOf(entity), 1) });
+        }
+    }
+
+    /**
+     * 
+     * @param {Level} lvl 
+     */
+    static loadLevel(lvl) {
+        level = lvl;
     }
 
     /**
@@ -77,14 +114,40 @@ class Game {
     static entities() { return bank.entities }
 
     /**
+     * @returns {Camera[]}
+     */
+    static cameras() { return bank.cameras }
+
+    /**
+     * 
+     * @param {Camera} camera 
+     */
+    static setActiveCamera(camera) { activeCamera = camera }
+
+    /**
+     * @returns {Camera|null}
+     */
+    static getActiveCamera() { return activeCamera }
+
+    /**
      * @returns {CanvasRenderingContext2D}
      */
     static context() { return context }
 
     /**
+     * @returns {Level}
+     */
+    static level() { return level }
+
+    /**
      * @returns {boolean}
      */
     static debug() { return debugMode }
+
+    /**
+     * @returns {scale}
+     */
+    static scale() { return scale }
 }
 
 module.exports = Game;

@@ -1,12 +1,13 @@
-let Game = null;
 let EventEmitter = require('events').EventEmitter;
-let EntityBank = require('./EntityBank.js');
+
+let Game = require('./Game.js');
 let Collider = require('./Collider.js');
+
+function map(v, l1, h1, l2, h2) { return ( l2 + (h2 - l2) * (v - l1) / (h1 - l1) ) }
 
 class Entity extends EventEmitter {
     constructor(x, y) {
-        if (!Game) { Game = require('./Game.js') }
-
+        if (Object.values(Game).length == 0) { Game = require('./Game.js') }
         super();
 
         this.x = x;
@@ -16,9 +17,10 @@ class Entity extends EventEmitter {
 
         this.colliders = [];
 
-        this.addCollider(new Collider(0, 0, 20, 20));
+        // 
+        //this.addCollider(new Collider(0, 0, 20, 20));
 
-        EntityBank.add(this);
+        Game.addEntity(this);
     }
 
     /**
@@ -28,24 +30,48 @@ class Entity extends EventEmitter {
     addCollider(collider) { this.colliders.push(collider) }
 
     render() {
-        if (Game.debug()) {
-            for (let c = 0; c < this.colliders.length; c++) {
-                this.context.fillStyle = '#FFF';
-                this.context.strokeStyle = '#0000FF';
-                this.context.strokeRect(this.x+this.colliders[c].x, this.y+this.colliders[c].y, this.colliders[c].h, this.colliders[c].h);
-            }
-        }
+        let relative = this.getRelativePos();
+        if (relative) {
+            let canvas_x = relative[0] + Math.floor(Game.context().canvas.width / Game.scale());
+            let canvas_y = relative[1] + Math.floor(Game.context().canvas.height / Game.scale());
 
-        this.context.fillStyle = '#FF0000';
-        this.context.strokeStyle = '#FF0000';
-        this.context.fillRect(this.x, this.y, 10, 10);
+            //console.log(canvas_x, canvas_y);
+
+            this.context.fillStyle = '#FF0000';
+            this.context.strokeStyle = '#FF0000';
+
+            this.context.fillRect(canvas_x, canvas_y, 3, 3);
+
+            //this.context.fillRect()
+        }
     }
 
     update() {
-        this.x += 0.5;
+        this.y += 0.5;
     }
 
     destroy() { this.emit('destroy') }
+
+    getRelativePos() {
+        let camera = Game.getActiveCamera();
+        if (!camera) { return null }
+
+        let width = Math.floor(Game.context().canvas.width / Game.scale());
+        let height = Math.floor(Game.context().canvas.height / Game.scale());
+
+        // inverts the y-axis to be "propper" rather than using canvas style y-axis
+
+        let x = this.x;
+        let y = map(this.y, Game.level().height, 0, 0, Game.level().height);
+
+        let cx = camera.x;
+        let cy = map(camera.y, Game.level().height, 0, 0, Game.level().height);
+
+        let dx = x - cx;
+        let dy = y - cy;
+
+        return [dx, dy];
+    }
 }
 
 module.exports = Entity;

@@ -1,4 +1,4 @@
-let Game = require('./Game.js');
+let Game = require('./../Game.js');
 let Entity = require('./Entity.js');
 
 class Camera extends Entity {

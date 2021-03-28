@@ -1,6 +1,6 @@
 let EventEmitter = require('events').EventEmitter;
 
-let Game = require('./Game.js');
+let Game = require('./../Game.js');
 let Collider = require('./Collider.js');
 
 function map(v, l1, h1, l2, h2) { return ( l2 + (h2 - l2) * (v - l1) / (h1 - l1) ) }
